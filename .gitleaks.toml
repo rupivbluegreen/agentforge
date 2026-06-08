@@ -1,0 +1,14 @@
+title = "agentforge gitleaks config"
+
+# Use gitleaks' built-in rules, plus the allowlist below.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Dev-only fixtures with documented, non-secret placeholder credentials. These files exist solely to run the LOCAL docker stack and must never carry real secrets."
+paths = [
+  '''deploy/docker/\.env\.example''',
+  '''deploy/docker/docker-compose\.yml''',
+  '''deploy/docker/keycloak/realm-agentforge\.json''',
+  '''deploy/docker/postgres/init\.sql''',
+]

@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege by default.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm format:check
+
+  sbom:
+    name: SBOM (Syft)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Generates an SPDX SBOM for the repo and uploads it as a build artifact,
+      # so an SBOM is published for every build (Phase 0 acceptance).
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: agentforge.spdx.json
+
+  dependency-scan:
+    name: Dependency scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+  container-scan:
+    name: Container image scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -f deploy/docker/Dockerfile -t agentforge-backend:ci .
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: agentforge-backend:ci
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # Registry rulesets; --error makes findings fail the job (blocking gate).
+      - run: semgrep scan --config auto --error --metrics off
+
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Signed-off-by on every PR commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          for c in $(git rev-list "$BASE_SHA".."$HEAD_SHA"); do
+            if ! git log -1 --format=%B "$c" | grep -qiE '^Signed-off-by: .+ <.+@.+>'; then
+              echo "::error::commit $c is missing a DCO Signed-off-by trailer"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo 'Add sign-off with: git commit -s (see CONTRIBUTING.md)'
+            exit 1
+          fi
