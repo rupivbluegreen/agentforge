@@ -43,7 +43,8 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     port: Number(env.PORT ?? 3000),
     databaseUrl,
     sessionSecret,
-    cookieSecure: env.COOKIE_SECURE === 'true' || env.NODE_ENV === 'production',
+    cookieSecure:
+      env.COOKIE_SECURE !== undefined ? env.COOKIE_SECURE === 'true' : env.NODE_ENV === 'production',
     oidc: {
       issuerUrl: requireEnv(env, 'OIDC_ISSUER_URL'),
       clientId: requireEnv(env, 'OIDC_CLIENT_ID'),

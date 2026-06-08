@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.next
+**/.turbo
+.git
+.github
+**/coverage
+*.log
+deploy/docker/**/data
+vault-data
+keycloak-data

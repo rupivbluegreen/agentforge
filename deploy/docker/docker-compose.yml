@@ -1,0 +1,205 @@
+name: agentforge
+
+# Local, secure-by-default stack for agentforge. One command:
+#   docker compose -f deploy/docker/docker-compose.yml up --build
+#
+# Dev-only credentials come from compose defaults (overridable via .env — see
+# .env.example). Application secrets are seeded into Vault and read by the API through
+# the secrets adapter, so the compliant path (Vault) is the default path even locally.
+
+services:
+  # --------------------------------------------------------------------------- data
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: agentforge
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d agentforge']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # ------------------------------------------------------------------------ secrets
+  vault:
+    image: hashicorp/vault:1.18
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    command: ['server', '-dev']
+    healthcheck:
+      test: ['CMD', 'vault', 'status']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: seed application secrets into Vault (KV v2, default "secret" mount).
+  vault-seed:
+    image: hashicorp/vault:1.18
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:-root}
+    depends_on:
+      vault:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        vault kv put secret/agentforge \
+          database.url="postgres://agentforge_app:${APP_DB_PASSWORD:-agentforge_app_pw}@postgres:5432/agentforge" \
+          session.secret="${APP_SESSION_SECRET:-dev-session-secret-change-me-please-0123456789}" \
+          oidc.client.secret="${APP_OIDC_CLIENT_SECRET:-agentforge-api-secret}"
+    restart: 'no'
+
+  # ----------------------------------------------------------------------- identity
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: 'true'
+      KC_HTTP_ENABLED: 'true'
+      KC_HOSTNAME_STRICT: 'false'
+    volumes:
+      - ./keycloak/realm-agentforge.json:/opt/keycloak/data/import/realm-agentforge.json:ro
+
+  # ----------------------------------------------------------------- observability
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ['-config.file=/etc/tempo/tempo.yaml']
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    command: ['--config.file=/etc/prometheus/prometheus.yml']
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - '19090:9090'
+
+  loki:
+    image: grafana/loki:3.3.2
+    command: ['-config.file=/etc/loki/loki.yaml']
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - lokidata:/loki
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    command: ['-config.file=/etc/promtail/config.yaml']
+    user: root
+    volumes:
+      - ./promtail/config.yaml:/etc/promtail/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      loki:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    command: ['--config=/etc/otel/collector.yaml']
+    volumes:
+      - ./otel/collector.yaml:/etc/otel/collector.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - '13000:3000'
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+      loki:
+        condition: service_started
+
+  # --------------------------------------------------------------------- application
+  # One-shot: apply database migrations as the bootstrap superuser (owns the tables).
+  migrate:
+    image: agentforge-backend:dev
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    command: ['node', '/app/packages/db/dist/migrate.js']
+    environment:
+      DATABASE_MIGRATION_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/agentforge
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    image: agentforge-backend:dev
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      COOKIE_SECURE: 'false' # dev stack is plain HTTP
+      SECRETS_PROVIDER: vault
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:-root}
+      VAULT_SECRET_PATH: agentforge
+      OIDC_ISSUER_URL: http://keycloak:8080/realms/agentforge
+      OIDC_CLIENT_ID: agentforge-api
+      OIDC_REDIRECT_URI: http://localhost:3000/auth/callback
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: agentforge-api
+      OTEL_SERVICE_VERSION: 0.0.0
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      vault-seed:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://localhost:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  pgdata:
+  tempodata:
+  lokidata:
+  grafanadata:
