@@ -1,0 +1,11 @@
+agentforge
+Copyright 2026 The agentforge Authors
+
+This product includes software developed by the agentforge project and its
+contributors. Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This software bundles or depends on third-party open-source components, each
+governed by its own license. The authoritative inventory of bundled and
+transitive dependencies is the SBOM generated for every build (see
+deploy/docker and the CI pipeline); refer to it for attribution and license
+details of those components.

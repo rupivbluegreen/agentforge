@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/agent-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent definition model (incl. EU AI Act risk metadata) and orchestration engine."
+}

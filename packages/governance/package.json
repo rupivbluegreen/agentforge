@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/governance",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Audit log, DSR service, AI-risk classifier, incident mgmt, ICT registry, evidence generator."
+}

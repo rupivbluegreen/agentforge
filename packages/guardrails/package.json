@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/guardrails",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Input/output guardrails: PII detect/redact, injection detection, moderation, schema validation, AI labeling."
+}

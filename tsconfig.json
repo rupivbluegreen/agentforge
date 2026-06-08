@@ -1,0 +1,10 @@
+{
+  // Root config exists so editors/tooling resolve a project at the repo root.
+  // Each app/package has its own tsconfig that extends tsconfig.base.json.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [],
+  "files": []
+}

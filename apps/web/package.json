@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js control-plane UI: visual builder, code editor, policy & connector management, AI-risk wizard."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Client SDK for embedding agents in host applications."
+}

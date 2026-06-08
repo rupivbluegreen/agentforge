@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/policy",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Policy Decision/Enforcement Points, OPA/Rego bindings, and policy bundles."
+}

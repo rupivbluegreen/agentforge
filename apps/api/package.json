@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NestJS control-plane API (BFF): tenant/workspace/project management, agent registry & versioning."
+}

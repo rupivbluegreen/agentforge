@@ -1,0 +1,6 @@
+{
+  "name": "@agentforge/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent execution engine (data plane): orchestration, sandboxed tool execution, egress control."
+}
