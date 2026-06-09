@@ -1,7 +1,10 @@
 import { Global, Module, type DynamicModule } from '@nestjs/common';
-import { createDb } from '@agentforge/db';
+import { createDb, type Db } from '@agentforge/db';
 import { createSecretsProvider } from '@agentforge/identity';
-import { APP_CONFIG, DB, SECRETS } from '../tokens.js';
+import { createProviderRegistry } from '@agentforge/providers';
+import { createToolRegistry } from '@agentforge/tools';
+import { AuditLog } from '@agentforge/governance';
+import { APP_CONFIG, DB, SECRETS, PROVIDERS, TOOLS, AUDIT } from '../tokens.js';
 import type { AppConfig } from '../config/app-config.js';
 
 /**
@@ -12,14 +15,26 @@ import type { AppConfig } from '../config/app-config.js';
 @Module({})
 export class CoreModule {
   static forRoot(config: AppConfig): DynamicModule {
+    const db: Db = createDb(config.databaseUrl);
     return {
       module: CoreModule,
       providers: [
         { provide: APP_CONFIG, useValue: config },
-        { provide: DB, useValue: createDb(config.databaseUrl) },
+        { provide: DB, useValue: db },
         { provide: SECRETS, useFactory: () => createSecretsProvider() },
+        {
+          provide: PROVIDERS,
+          useValue: createProviderRegistry({
+            ...(config.providerKeys.anthropic
+              ? { anthropicApiKey: config.providerKeys.anthropic }
+              : {}),
+            ...(config.providerKeys.openai ? { openaiApiKey: config.providerKeys.openai } : {}),
+          }),
+        },
+        { provide: TOOLS, useValue: createToolRegistry() },
+        { provide: AUDIT, useValue: new AuditLog(db) },
       ],
-      exports: [APP_CONFIG, DB, SECRETS],
+      exports: [APP_CONFIG, DB, SECRETS, PROVIDERS, TOOLS, AUDIT],
     };
   }
 }

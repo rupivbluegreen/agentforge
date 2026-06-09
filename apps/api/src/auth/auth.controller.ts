@@ -89,7 +89,7 @@ export class AuthController {
       this.cookieOpts(8 * 3600_000),
     );
     logger.info({ sub: session.sub, tenantSlug: session.tenantSlug }, 'user authenticated');
-    res.redirect('/auth/me');
+    res.redirect(this.config.postLoginRedirect);
   }
 
   /** The current authenticated principal. */

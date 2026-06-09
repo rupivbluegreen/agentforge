@@ -2,5 +2,34 @@
   "name": "@agentforge/agent-core",
   "version": "0.0.0",
   "private": true,
-  "description": "Agent definition model (incl. EU AI Act risk metadata) and orchestration engine."
+  "description": "Agent definition model (incl. EU AI Act risk metadata) and orchestration engine.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@agentforge/providers": "workspace:*",
+    "@agentforge/telemetry": "workspace:*",
+    "@agentforge/tools": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0"
+  }
 }

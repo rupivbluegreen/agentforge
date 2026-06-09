@@ -17,6 +17,10 @@ export interface AppConfig {
   /** Secure cookie flag — true in production / behind TLS. */
   cookieSecure: boolean;
   oidc: OidcConfig;
+  /** Where to send the browser after a successful login (the web app's home). */
+  postLoginRedirect: string;
+  /** Optional LLM provider API keys (the offline mock provider is always available). */
+  providerKeys: { anthropic?: string; openai?: string };
 }
 
 function requireEnv(env: NodeJS.ProcessEnv, key: string): string {
@@ -32,10 +36,12 @@ function requireEnv(env: NodeJS.ProcessEnv, key: string): string {
 export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<AppConfig> {
   const secrets = createSecretsProvider(env);
 
-  const [databaseUrl, sessionSecret, clientSecret] = await Promise.all([
+  const [databaseUrl, sessionSecret, clientSecret, anthropicKey, openaiKey] = await Promise.all([
     secrets.getRequired('database.url'),
     secrets.getRequired('session.secret'),
     secrets.getRequired('oidc.client.secret'),
+    secrets.get('anthropic.api.key'),
+    secrets.get('openai.api.key'),
   ]);
 
   return {
@@ -52,6 +58,11 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
       clientId: requireEnv(env, 'OIDC_CLIENT_ID'),
       clientSecret,
       redirectUri: requireEnv(env, 'OIDC_REDIRECT_URI'),
+    },
+    postLoginRedirect: env.OIDC_POST_LOGIN_REDIRECT ?? '/',
+    providerKeys: {
+      ...(anthropicKey ? { anthropic: anthropicKey } : {}),
+      ...(openaiKey ? { openai: openaiKey } : {}),
     },
   };
 }
