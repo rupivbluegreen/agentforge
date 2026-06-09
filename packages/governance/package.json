@@ -2,5 +2,32 @@
   "name": "@agentforge/governance",
   "version": "0.0.0",
   "private": true,
-  "description": "Audit log, DSR service, AI-risk classifier, incident mgmt, ICT registry, evidence generator."
+  "description": "Audit log, DSR service, AI-risk classifier, incident mgmt, ICT registry, evidence generator.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@agentforge/db": "workspace:*",
+    "drizzle-orm": "^0.38.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17",
+    "@types/node": "^20.17.0"
+  }
 }

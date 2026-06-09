@@ -10,6 +10,9 @@ RUN corepack enable
 # Copy the whole monorepo (node_modules/dist excluded via .dockerignore) and do a
 # clean, reproducible install + build inside the image.
 COPY . .
+# Next.js bakes rewrite() destinations at build time, so the web app's /api proxy
+# target must be set before `pnpm build`. In the compose network the API is `api:3000`.
+ENV API_PROXY_TARGET=http://api:3000
 RUN pnpm install --frozen-lockfile \
   && pnpm build
 

@@ -173,12 +173,11 @@ services:
       VAULT_SECRET_PATH: agentforge
       OIDC_ISSUER_URL: http://keycloak:8080/realms/agentforge
       OIDC_CLIENT_ID: agentforge-api
-      OIDC_REDIRECT_URI: http://localhost:3000/auth/callback
+      OIDC_REDIRECT_URI: http://localhost:3000/api/auth/callback
+      OIDC_POST_LOGIN_REDIRECT: /
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_SERVICE_NAME: agentforge-api
       OTEL_SERVICE_VERSION: 0.0.0
-    ports:
-      - '3000:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -197,6 +196,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 15
+
+  # Next.js control-plane UI. Publishes :3000 and proxies /api/* to the API, so the
+  # browser uses a single origin and the API's session cookie is first-party.
+  web:
+    image: agentforge-backend:dev
+    working_dir: /app
+    command: ['pnpm', '--filter', '@agentforge/web', 'start']
+    environment:
+      NODE_ENV: production
+      API_PROXY_TARGET: http://api:3000
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:
