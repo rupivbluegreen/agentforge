@@ -70,12 +70,17 @@ describe('tenant isolation (RLS)', () => {
   });
 
   it('rejects writing a row for a different tenant (WITH CHECK)', async () => {
-    await expect(
-      withTenant(db, tenantA, (tx) =>
-        // Scoped to A, but trying to plant a row for B.
-        tx.insert(workspaces).values({ tenantId: tenantB, name: 'cross-tenant write' }),
-      ),
-    ).rejects.toThrow(/row-level security/i);
+    // Scoped to A, but trying to plant a row for B — RLS WITH CHECK must reject it.
+    const error = await withTenant(db, tenantA, (tx) =>
+      tx.insert(workspaces).values({ tenantId: tenantB, name: 'cross-tenant write' }),
+    ).then(
+      () => null,
+      (e: unknown) => e as { message?: string; cause?: { message?: string } },
+    );
+    expect(error).not.toBeNull();
+    // The Postgres RLS error may be wrapped (drizzle puts it on `.cause`).
+    const text = `${error?.message ?? ''} ${error?.cause?.message ?? ''}`;
+    expect(text).toMatch(/row-level security/i);
   });
 
   it('cannot update or read across tenants', async () => {
