@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@agentforge/db": "workspace:*",
-    "drizzle-orm": "^0.38.4"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.17",
