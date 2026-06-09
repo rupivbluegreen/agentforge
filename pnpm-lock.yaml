@@ -202,7 +202,11 @@ importers:
         specifier: ^20.17.0
         version: 20.19.42
 
-  packages/policy: {}
+  packages/policy:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.0
+        version: 20.19.42
 
   packages/providers:
     dependencies:

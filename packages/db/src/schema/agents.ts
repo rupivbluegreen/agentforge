@@ -16,6 +16,10 @@ export const agents = pgTable(
     riskTier: text('risk_tier').notNull().default('minimal'),
     currentVersion: integer('current_version').notNull().default(1),
     definition: jsonb('definition').$type<unknown>().notNull(),
+    // Zero-trust lifecycle fields (Phase 2).
+    status: text('status').notNull().default('draft'),
+    egressAllowlist: jsonb('egress_allowlist').$type<string[]>().notNull().default([]),
+    riskAssessment: jsonb('risk_assessment').$type<unknown>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -2,5 +2,28 @@
   "name": "@agentforge/policy",
   "version": "0.0.0",
   "private": true,
-  "description": "Policy Decision/Enforcement Points, OPA/Rego bindings, and policy bundles."
+  "description": "Policy Decision/Enforcement Points, OPA/Rego bindings, and policy bundles.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bundle"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0"
+  }
 }
