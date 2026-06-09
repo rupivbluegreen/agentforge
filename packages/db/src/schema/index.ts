@@ -11,3 +11,4 @@ export {
 } from './agents.js';
 export { runs, type RunRow, type NewRunRow } from './runs.js';
 export { auditLog, type AuditLogRow, type NewAuditLogRow } from './audit-log.js';
+export { memberships, type MembershipRow, type NewMembershipRow } from './memberships.js';
