@@ -49,14 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scanners: vuln
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
+      # Run Trivy via its official image (robust across action-version churn).
+      - name: Trivy filesystem scan (fixed CRITICAL/HIGH fail the build)
+        run: |
+          docker run --rm -v "$PWD:/repo" aquasec/trivy:0.58.1 fs /repo \
+            --scanners vuln --severity CRITICAL,HIGH --ignore-unfixed \
+            --exit-code 1 --no-progress
 
   container-scan:
     name: Container image scan (Trivy)
@@ -65,36 +63,34 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -f deploy/docker/Dockerfile -t agentforge-backend:ci .
-      - uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: image
-          image-ref: agentforge-backend:ci
-          scanners: vuln
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
+      - name: Trivy image scan (fixed CRITICAL fail the build)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+            image agentforge-backend:ci \
+            --scanners vuln --severity CRITICAL --ignore-unfixed \
+            --exit-code 1 --no-progress
 
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Scan the working tree with the official gitleaks image (honours .gitleaks.toml).
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 dir /repo \
+            --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
 
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      # Registry rulesets; --error makes findings fail the job (blocking gate).
-      - run: semgrep scan --config auto --error --metrics off
+      # Pinned registry rulesets (`auto` requires metrics on; we keep metrics off).
+      - name: Semgrep
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep \
+            semgrep scan --config=p/default --config=p/secrets --error --metrics off
 
   dco:
     name: DCO sign-off

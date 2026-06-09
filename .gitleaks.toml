@@ -5,10 +5,15 @@ title = "agentforge gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Dev-only fixtures with documented, non-secret placeholder credentials. These files exist solely to run the LOCAL docker stack and must never carry real secrets."
+description = "Dev-only fixtures with documented placeholder credentials, plus build artifacts. Fixtures exist solely to run the LOCAL docker stack and must never carry real secrets; build artifacts (.next/dist/etc.) are generated and gitignored."
 paths = [
   '''deploy/docker/\.env\.example''',
   '''deploy/docker/docker-compose\.yml''',
   '''deploy/docker/keycloak/realm-agentforge\.json''',
   '''deploy/docker/postgres/init\.sql''',
+  # Generated build output (scanned by `gitleaks dir`, but never committed).
+  '''\.next/''',
+  '''/dist/''',
+  '''node_modules/''',
+  '''\.turbo/''',
 ]
